@@ -1,8 +1,6 @@
 # Load required libraries
-library(ggplot2)   # For data visualization
-#library(car)       # For regression analysis
+library(ggplot2)   
 library(moments)     # For descriptive stats like skewness and kurtosis
-#library(MASS)      # For regression diagnostics
 
 ev_data <- read.csv(".\\DataSet\\EVChargingStationUsage.csv")
 
@@ -14,8 +12,7 @@ ev_data <- ev_data[, c("End.Date", "Station.Name", "Charging.Time..hh.mm.ss.", "
 # Convert "End.Date" column to Date type
 ev_data$`End.Date` <- as.Date(ev_data$`End.Date`)
 
-# Convert "Charging.Time..hh.mm.ss." to numeric (e.g., total minutes)
-# Split duration into hours, minutes, seconds
+# Convert "Charging.Time..hh.mm.ss." to minutes
 duration_parts <- strsplit(as.character(ev_data$`Charging.Time..hh.mm.ss.`), ":")
 duration_in_minutes <- sapply(duration_parts, function(x) {
   as.numeric(x[1]) * 60 + as.numeric(x[2]) + as.numeric(x[3]) / 60
@@ -34,8 +31,8 @@ variance_duration <- var(ev_data$Duration_Minutes, na.rm = TRUE)
 sd_duration <- sd(ev_data$Duration_Minutes, na.rm = TRUE)
 
 # Skewness and Kurtosis
-skew_duration <- skew(ev_data$Duration_Minutes)
-kurtosis_duration <- kurtosi(ev_data$Duration_Minutes)
+skew_duration <- skewness(ev_data$Duration_Minutes)
+kurtosis_duration <- kurtosis(ev_data$Duration_Minutes)
 
 # ----- Data Visualization -----
 # Plot duration over time
@@ -79,11 +76,10 @@ multiple_regression <- lm(Duration_Minutes ~ `GHG.Savings..kg.` + `Energy..kWh.`
 summary(multiple_regression)
 
 # Regression diagnostics (Check residuals, assumptions)
-#par(mfrow = c(2, 2)) # Plot 4 diagnostic graphs
-
 plot(multiple_regression)
-par(ask="N")
+
 # ----- Classical Tests -----
+
 # T-test to compare duration between two stations (e.g., Station 1 vs Station 2)
 station1_duration <- ev_data[ev_data$`Station.Name` == "PALO ALTO CA / BRYANT #1", "Duration_Minutes"]
 station2_duration <- ev_data[ev_data$`Station.Name` == "PALO ALTO CA / HAMILTON #1", "Duration_Minutes"]
@@ -108,7 +104,6 @@ new_data_for_ghg <- data.frame(
 # Make predictions for GHG savings using the new model
 predicted_ghg_savings <- predict(ghg_regression, newdata = new_data_for_ghg)
 
-# Add the predicted GHG savings to the new data frame
 
 # Plot the predicted GHG savings vs the actual data
 ggplot(ev_data, aes(x = Duration_Minutes, y = `GHG.Savings..kg.`)) +
