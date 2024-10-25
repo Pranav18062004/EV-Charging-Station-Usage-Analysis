@@ -7,7 +7,7 @@ ev_data <- read.csv(".\\DataSet\\EVChargingStationUsage.csv")
 str(ev_data)
 
 # Select relevant columns
-ev_data <- ev_data[, c("End.Date", "Station.Name", "Charging.Time..hh.mm.ss.", "GHG.Savings..kg.", "Energy..kWh.")]
+ev_data <- ev_data[, c("End.Date", "Station.Name", "Charging.Time..hh.mm.ss.", "GHG.Savings..kg.", "Energy..kWh.", "Total.Duration..hh.mm.ss.")]
 
 # Convert "End.Date" column to Date type
 ev_data$`End.Date` <- as.Date(ev_data$`End.Date`)
@@ -18,8 +18,13 @@ duration_in_minutes <- sapply(duration_parts, function(x) {
   as.numeric(x[1]) * 60 + as.numeric(x[2]) + as.numeric(x[3]) / 60
 })
 
+total_duration_parts <- strsplit(as.character(ev_data$`Total.Duration..hh.mm.ss.`), ":")
+total_duration_in_minutes <- sapply(total_duration_parts, function(x) {
+  as.numeric(x[1]) * 60 + as.numeric(x[2]) + as.numeric(x[3]) / 60
+})
 # Add the calculated duration back to the dataframe
 ev_data$Duration_Minutes <- duration_in_minutes
+ev_data$Total_Duration_Minutes <- total_duration_in_minutes
 
 # ----- Statistical Analysis of Data -----
 # Central tendency (mean, median)
@@ -52,6 +57,9 @@ cor_duration_ghg <- cor(ev_data$Duration_Minutes, ev_data$`GHG.Savings..kg.`, us
 # Correlation between duration and Energy
 cor_duration_energy <- cor(ev_data$Duration_Minutes, ev_data$`Energy..kWh.`, use = "complete.obs")
 
+cor_duration_total <- cor(ev_data$Duration_Minutes, ev_data$Total_Duration_Minutes, use = "complete.obs")
+
+
 # Scatter plot for correlation with GHG Savings
 ggplot(ev_data, aes(x = `GHG.Savings..kg.`, y = Duration_Minutes)) +
   geom_point(color = "blue") +
@@ -67,16 +75,23 @@ ggplot(ev_data, aes(x = `Energy..kWh.`, y = Duration_Minutes)) +
 simple_regression_ghg <- lm(Duration_Minutes ~ `GHG.Savings..kg.`, data = ev_data)
 summary(simple_regression_ghg)
 
+
+
 # Simple regression (Duration ~ Energy)
-simple_regression_energy <- lm(Duration_Minutes ~ `Energy..kWh.`, data = ev_data)
-summary(simple_regression_energy)
+simple_regression_duration <- lm(Duration_Minutes ~ Total_Duration_Minutes, data = ev_data)
+summary(simple_regression_duration)
+
 
 # Multiple regression (Duration ~ GHG Savings + Energy)
 multiple_regression <- lm(Duration_Minutes ~ `GHG.Savings..kg.` + `Energy..kWh.`, data = ev_data)
 summary(multiple_regression)
 
 # Regression diagnostics (Check residuals, assumptions)
-plot(multiple_regression)
+ggplot(ev_data, aes(x = Duration_Minutes, y = Total_Duration_Minutes)) +
+  geom_point(color = "blue", alpha = 0.5) +  
+  labs(title = "Regression of Charging Duration vs Total Duration of Stay", 
+       x = "Charging Duration (minutes)", y = "Total Duration Stayed (minutes)") +
+  geom_smooth(method = "lm", se = FALSE, color = "green")
 
 # ----- Classical Tests -----
 
@@ -125,6 +140,7 @@ cat("Skewness of Duration:", skew_duration, "\n")
 cat("Kurtosis of Duration:", kurtosis_duration, "\n")
 cat("Correlation between Duration and GHG Savings:", cor_duration_ghg, "\n")
 cat("Correlation between Duration and Energy:", cor_duration_energy, "\n")
+cat("Correlation between Charge Duration and Total Duration Stayed:", cor_duration_total, "\n")
 cat("T-test result: p-value:", t_test_result$p.value, "\n")
 cat("ANOVA result: p-value:", summary(anova_result)[[1]][["Pr(>F)"]][1], "\n")
 cat("The predicted GHG Value is: ", predicted_ghg_savings)
